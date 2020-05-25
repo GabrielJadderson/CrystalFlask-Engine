@@ -1,0 +1,32 @@
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,0,1,0
+PRODUCTVERSION  0,0,1,0
+BEGIN
+
+
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "Comments", "\0"
+            VALUE "CompanyName", "Gabriel Jadderson\0"
+            VALUE "FileDescription", "CrystalFlask\0"
+            VALUE "FileVersion", "0,0,1,0\0"
+            VALUE "InternalName", "CrystalFlask\0"
+            VALUE "LegalCopyright", "Copyright © 2020\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "win32_crystalflask.exe\0"
+            VALUE "PrivateBuild", "1\0"
+            VALUE "ProductName", "CrystalFlask\0"
+            VALUE "ProductVersion", "0, 0, 1, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+
+    BLOCK "VarFileInfo"
+    BEGIN
+       VALUE "Translation", 0x409, 1252
+    END
+END

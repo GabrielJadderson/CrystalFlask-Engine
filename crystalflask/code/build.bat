@@ -3,7 +3,7 @@
 set GladCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi /fp:fast /fp:except-
 set ImguiCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi /fp:fast /fp:except-
 
-set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi /fp:fast /fp:except- -W4 -wd4530 -wd4211 -wd4201 -wd4100 -wd4996 -wd4127 -wd4505 -wd4189 -wd4456 -DCRYSTALFLASK_INTERNAL=1 -DCRYSTALFLASK_SLOW=1 -DCRYSTALFLASK_WIN32=1 -FC -Z7
+set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi /fp:fast /fp:except- -W4 -wd4530 -wd4211 -wd4201 -wd4100 -wd4996 -wd4127 -wd4505 -wd4189 -wd4456 -wd4312 -DCRYSTALFLASK_INTERNAL=1 -DCRYSTALFLASK_SLOW=1 -DCRYSTALFLASK_WIN32=1 -FC -Z7
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib shell32.lib  winmm.lib opengl32.lib Comdlg32.lib
 
 IF NOT EXIST ..\..\build mkdir ..\..\build

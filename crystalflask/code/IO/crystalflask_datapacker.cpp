@@ -1,10 +1,10 @@
 #include "crystalflask_datapacker.h"
 
-#pragma warning( push )
-#pragma warning( disable : 4172 )
 char *
 OpenFolderDialog()
 {
+#pragma warning( push )
+#pragma warning( disable : 4172 )
     // Initialize COM to be able to use classes like IFileOpenDialog.
     CoInitialize(nullptr);
     
@@ -31,16 +31,16 @@ OpenFolderDialog()
     }
     CoUninitialize();
     return ResultBuffer;
-}
 #pragma warning( pop )
+}
 
 
 //free the memory when you're done!
-#pragma warning( push )
-#pragma warning( disable : 4172 )
 char*
 SaveFolderDialog()
 {
+#pragma warning( push )
+#pragma warning( disable : 4172 )
     // Initialize COM to be able to use classes like IFileSaveDialog.
     CoInitialize(nullptr);
     // Create an instance of IFileSaveDialog.
@@ -66,8 +66,8 @@ SaveFolderDialog()
     }
     CoUninitialize();
     return ResultBuffer;
-}
 #pragma warning( pop )
+}
 
 char*
 file_ext_lookup_table[]
@@ -85,6 +85,7 @@ file_ext_lookup_table[]
     "wav",
     "txt",
     "png",
+    "glsl",
 };
 
 char

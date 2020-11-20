@@ -28,7 +28,6 @@ wchar_t* Win32GetLastErrorMessageW(wchar_t(*buffer)[256])
     return *buffer;
 }
 
-
 internal s32
 Win32MessageBoxError(char* Message)
 {

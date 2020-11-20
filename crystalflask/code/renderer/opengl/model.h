@@ -10,9 +10,11 @@ static const uint32_t s_MeshImportFlags =
 aiProcess_CalcTangentSpace |        // Create binormals/tangents just in case
 aiProcess_Triangulate |             // Make sure we're triangles
 aiProcess_SortByPType |             // Split meshes by primitive type
+//aiProcess_PreTransformVertices |
 aiProcess_GenNormals |              // Make sure we have legit normals
 aiProcess_GenUVCoords |             // Convert UVs if required
 aiProcess_OptimizeMeshes |          // Batch draws where possible
+//aiProcess_Debone |                  // This step removes bones losslessly or according to some threshold.
 aiProcess_ValidateDataStructure;    // Validation
 
 static glm::mat4 aiMatrix4x4ToGlm(const aiMatrix4x4& from)
@@ -30,7 +32,7 @@ static Assimp::Importer* Importer = NULL;
 static aiScene* AIScene;
 
 internal mesh_data*
-ExtractMeshData(char *filename)
+ExtractMeshData(char *Filename)
 {
     
     mesh_data *Result = (mesh_data*)PushStruct(&GlobalResourceArena, mesh_data);
@@ -38,10 +40,10 @@ ExtractMeshData(char *filename)
     if (!Importer)
         Importer = new Assimp::Importer();
     
-    const aiScene* scene = Importer->ReadFile(filename, s_MeshImportFlags);
+    const aiScene* scene = Importer->ReadFile(Filename, s_MeshImportFlags);
     if (!scene || !scene->HasMeshes())
     {
-        CrystalFlaskConsole.AddLog("[ERROR] ReadMesh failed to read file: %s", filename);
+        CrystalFlaskConsole.AddLog("[ERROR] ReadMesh failed to read file: %s", Filename);
         //failed to read mesh
         return NULL;
     } else
@@ -75,6 +77,9 @@ ExtractMeshData(char *filename)
         
         aiMesh* mesh = scene->mMeshes[MeshIndex];
         
+        Assert(mesh->HasPositions());
+        Assert(mesh->HasNormals());
+        
         Submesh submesh;
         submesh.BaseVertex = vertexCount;
         submesh.BaseIndex = indexCount;
@@ -91,18 +96,49 @@ ExtractMeshData(char *filename)
         {
             Vertex vertex;
             vertex.Position = { mesh->mVertices[VertexIndex].x, mesh->mVertices[VertexIndex].y, mesh->mVertices[VertexIndex].z };
-            vertex.Normal = { mesh->mNormals[VertexIndex].x, mesh->mNormals[VertexIndex].y, mesh->mNormals[VertexIndex].z };
+            
+            if (mesh->HasNormals())
+            {
+                vertex.Normal = { mesh->mNormals[VertexIndex].x, mesh->mNormals[VertexIndex].y, mesh->mNormals[VertexIndex].z };
+            }
+            else
+            {
+                char ErrorBuffer[128];
+                sprintf_s(ErrorBuffer, 128, "Mesh %s has no Normals.", Filename);
+                Win32MessageBoxError(ErrorBuffer);
+            }
+            
             
             if (mesh->HasTangentsAndBitangents())
             {
                 vertex.Tangent = { mesh->mTangents[VertexIndex].x, mesh->mTangents[VertexIndex].y, mesh->mTangents[VertexIndex].z };
+                
                 vertex.Binormal = { mesh->mBitangents[VertexIndex].x, mesh->mBitangents[VertexIndex].y, mesh->mBitangents[VertexIndex].z };
             }
+            else
+            {
+                char ErrorBuffer[128];
+                sprintf_s(ErrorBuffer, 128, "Mesh %s has no Tangents And Bitangents.", Filename);
+                Win32MessageBoxError(ErrorBuffer);
+            }
             
-            if (mesh->HasTextureCoords(0))
-                vertex.Texcoord = { mesh->mTextureCoords[0][VertexIndex].x, mesh->mTextureCoords[0][VertexIndex].y };
+            if (mesh->HasTextureCoords((u32)MeshIndex))
+            {
+                vertex.Texcoord = { mesh->mTextureCoords[MeshIndex][VertexIndex].x, mesh->mTextureCoords[MeshIndex][VertexIndex].y };
+            }
+            else
+            {
+                char ErrorBuffer[128];
+                sprintf_s(ErrorBuffer, 128, "Mesh %s has no TextureCoords.", Filename);
+                Win32MessageBoxError(ErrorBuffer);
+            }
             
             Result->Vertices[VertexIndex] = vertex;
+        }
+        
+        if (!mesh->HasTangentsAndBitangents())
+        {
+            //computeTangentBasis(Result->Vertices, Result->VertexCount);
         }
         
         // Indices
@@ -119,17 +155,14 @@ ExtractMeshData(char *filename)
 }
 
 internal mesh_data*
-ReadMeshAndUpload(char *filename)
+ReadMeshAndUpload(char *Filename)
 {
     
-    
-    mesh_data* Result = ExtractMeshData(filename);
+    mesh_data* Result = ExtractMeshData(Filename);
     if (Result == NULL)
     {
         return NULL;
     }
-    
-    
     
     u32 VertexBuffer = 0;
     glGenBuffers(1, &VertexBuffer);
@@ -331,8 +364,8 @@ RenderMesh(mesh_data *Mesh)
             glEnableVertexAttribArray(0);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, Position));
             
-            glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, Normal));
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, Normal));
             
             glEnableVertexAttribArray(2);
             glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const void*)offsetof(Vertex, Tangent));
@@ -357,6 +390,96 @@ RenderMesh(mesh_data *Mesh)
         UploadMeshToGPU(Mesh);
     }
     
+}
+
+//~ text
+
+
+
+internal void
+Text2DToMesh(char* Text, s32 X, s32 Y, s32 Size,
+             mesh_data *Data)
+{
+    u64 StrLength = StringLength(Text);
+    
+    glm::vec2 Vertices[500];
+    glm::vec2 UVs[500];
+    
+    u32 VerticesSpan = 0;
+    u32 UVsSpan = 0;
+    
+    for (u32 i = 0; i < StrLength; i++)
+    {
+        if (VerticesSpan >= StrLength*6) continue;
+        if (UVsSpan >= StrLength*6) continue;
+        
+		glm::vec2 vertex_up_left    = glm::vec2( X + i * Size       , Y + Size );
+		glm::vec2 vertex_up_right   = glm::vec2( X + i * Size + Size, Y + Size );
+		glm::vec2 vertex_down_right = glm::vec2( X + i * Size + Size, Y      );
+		glm::vec2 vertex_down_left  = glm::vec2( X + i * Size       , Y      );
+        
+        Vertices[VerticesSpan++] = vertex_up_left;
+        Vertices[VerticesSpan++] = vertex_down_left;
+        Vertices[VerticesSpan++] = vertex_up_right;
+        
+        Vertices[VerticesSpan++] = vertex_down_right;
+		Vertices[VerticesSpan++] = vertex_up_right;
+		Vertices[VerticesSpan++] =vertex_down_left;
+        
+		char character = Text[i];
+		float uv_x = (character % 16) / 16.0f;
+		float uv_y = (character / 16) / 16.0f;
+        
+		glm::vec2 uv_up_left    = glm::vec2( uv_x               , uv_y );
+		glm::vec2 uv_up_right   = glm::vec2( uv_x + 1.0f / 16.0f, uv_y );
+		glm::vec2 uv_down_right = glm::vec2( uv_x + 1.0f / 16.0f, (uv_y + 1.0f / 16.0f) );
+		glm::vec2 uv_down_left  = glm::vec2( uv_x               , (uv_y + 1.0f / 16.0f) );
+		
+        UVs[UVsSpan++] = uv_up_left;
+        UVs[UVsSpan++] = uv_down_left;
+        UVs[UVsSpan++] = uv_up_right;
+        
+        UVs[UVsSpan++] = uv_down_right;
+		UVs[UVsSpan++] = uv_up_right;
+		UVs[UVsSpan++] = uv_down_left;
+	}
+    
+    glBindVertexArray(Data->VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, Data->VertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, VerticesSpan * sizeof(glm::vec2), &Vertices[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, Data->VertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, UVsSpan * sizeof(glm::vec2), &UVs[0], GL_STATIC_DRAW);
+    
+    
+    Data->VertexCount = VerticesSpan;
+    Data->IndexCount = UVsSpan;
+    Data->IsInitialized = true;
+    Data->IsUploaded = true;
+}
+
+
+internal mesh_data*
+InitText2D(char* Text, s32 X, s32 Y, s32 Size)
+{
+    mesh_data *MeshData = (mesh_data*)PushStruct(&GlobalResourceArena, mesh_data);
+    
+    u32 VertexBuffer = 0;
+    glGenBuffers(1, &VertexBuffer);
+    
+    u32 UVBuffer = 0;
+    glGenBuffers(1, &UVBuffer);
+    
+    u32 VAO;
+    glGenVertexArrays(1, &VAO);
+    
+    MeshData->VAO = VAO;
+    MeshData->VertexBuffer = VertexBuffer;
+    MeshData->IndexBuffer = UVBuffer;
+    
+    Text2DToMesh(Text, X, Y, Size, MeshData);
+    
+    return MeshData;
 }
 
 

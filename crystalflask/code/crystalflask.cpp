@@ -4,7 +4,6 @@
 #include "gl3w.c"
 
 //this is the game layer
-
 global_variable game_state *GlobalGameState = NULL;
 global_variable b32 GlobalGameInitialized = false;
 
@@ -46,7 +45,8 @@ StartupGame(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffe
     
 }
 
-internal void GameInput(game_input* Input)
+internal void
+GameInput(game_input* Input)
 {
     
     for(int ControllerIndex = 0;

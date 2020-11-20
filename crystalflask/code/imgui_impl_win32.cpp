@@ -898,3 +898,110 @@ static void ImGui_ImplWin32_ShutdownPlatformInterface()
 }
 
 //---------------------------------------------------------------------------------------------------------
+
+
+internal void
+ImGuiInit(HWND Window)
+{
+    
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    
+    io.ConfigDockingWithShift = 0;
+    io.ConfigDockingAlwaysTabBar = 1;
+    io.ConfigDockingTransparentPayload = 1;
+    io.ConfigWindowsMoveFromTitleBarOnly = 1;
+    
+    
+    ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+    
+    style.FrameBorderSize = 0;
+    style.WindowBorderSize = 0;
+    style.ScrollbarSize = 4;
+    style.ItemSpacing[0] = 7.0f;
+    style.ItemSpacing[1] = 7.0f;
+    style.ItemInnerSpacing[0] = 3.0f;
+    style.ItemInnerSpacing[1] = 3.0f;
+    style.GrabMinSize = 8.0f;
+    style.WindowPadding[0] = 7.0f;
+    style.WindowPadding[1] = 7.0f;
+    style.FramePadding[0] = 4.0f;
+    style.FramePadding[1] = 6.0f;
+    
+    
+    style.WindowRounding = 3.0f;
+    style.ChildRounding = 3.0f;
+    style.FrameRounding = 3.0f;
+    style.PopupRounding = 3.0f;
+    style.ScrollbarRounding = 3.0f;
+    style.GrabRounding = 1.0f;
+    style.TabRounding = 2.0f;
+    
+    style.WindowMenuButtonPosition = 1;
+    
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
+    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.187f, 0.187f, 0.187f, 1.0f);
+    style.Colors[ImGuiCol_CheckMark] = ImVec4(0.280f, 0.280f, 0.280f, 1.0f);
+    style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.280f, 0.280f, 0.280f, 1.0f);
+    style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    
+    style.Colors[ImGuiCol_Button] = ImVec4(0.373f, 0.373f, 0.373f, 1.0f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    
+    style.Colors[ImGuiCol_Header] = ImVec4(0.190f, 0.190f, 0.190f, 1.0f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    style.Colors[ImGuiCol_HeaderActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    
+    style.Colors[ImGuiCol_Separator] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
+    style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
+    style.Colors[ImGuiCol_SeparatorActive] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
+    
+    style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.0f, 0.0f, 0.0f, 0.250f);
+    style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    
+    
+    style.Colors[ImGuiCol_Tab] = ImVec4(0.8, 0.8f, 0.8f, 0.676f);
+    style.Colors[ImGuiCol_TabHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    style.Colors[ImGuiCol_TabActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
+    style.Colors[ImGuiCol_TabUnfocused] = ImVec4(0.200f, 0.200f, 0.200f, 1.0f);
+    style.Colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.0f, 0.0, 0.0f, 1.0f);
+    
+    
+    style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.980f, 0.680f, 0.260f, 0.350f);
+    style.Colors[ImGuiCol_NavHighlight] = ImVec4(0.980f, 0.680f, 0.260f, 0.350f);
+    
+    style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.0f, 0.243f, 0.545f, 0.350f);
+    
+    
+    io.Fonts->AddFontFromFileTTF("resources/editor/imgui/fonts/Inter-Regular.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Black.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Bold.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Medium.ttf", 15.0f);
+    
+    
+    //io.Fonts->AddFontFromFileTTF("resources/editor/imgui/Menlo-Regular.ttf", 14.0f);
+    //io.Fonts->AddFontFromFileTTF("resources/editor/imgui/routed-gothic.ttf", 20.0f);
+    
+    
+    
+    
+    
+    ImGui_ImplWin32_Init(Window);
+    ImGui_ImplOpenGL3_Init("#version 460");
+}

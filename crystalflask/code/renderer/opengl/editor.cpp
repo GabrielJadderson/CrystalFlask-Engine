@@ -2,6 +2,13 @@
 // TODO(Gabriel): Integrate editor from crystal flask.
 // TODO(Gabriel): make the editor control all editor functionality.
 
+internal void
+LoadEditorResources()
+{
+    texture_descriptor CubeTexture =
+        RegisterTexture("resources/editor/images/cube.png", TextureType_PNG, false);
+    EditorTexture_Cube = CubeTexture.TextureID;
+}
 
 
 internal void
@@ -16,7 +23,6 @@ RenderEditor(glm::mat4 &ViewProjection, camera *Camera)
         //CameraImGuiRender2(Camera);
         
         
-        
         //render editor grid plane
         glUseProgram(GlobalShaderCache.EditorFloorGridProgram);
         {
@@ -27,10 +33,9 @@ RenderEditor(glm::mat4 &ViewProjection, camera *Camera)
             
             glm::mat4 MVP = ViewProjection * ModelMatrix;
             
-            ShaderEditorFloorGridSubmit(MVP, EditorGridPlaneScale);
+            ShaderEditorFloorGridUpload(MVP, EditorGridPlaneScale);
             RenderMesh(EditorGridPlane);
         }
-        
         
         
     }

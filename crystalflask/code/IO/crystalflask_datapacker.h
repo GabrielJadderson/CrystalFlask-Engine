@@ -92,7 +92,6 @@ struct CFBin
     void Init();
     
     
-    
     struct DataBuffer
     {
         u64 size;

@@ -1,18 +1,4 @@
 
-struct camera
-{
-    glm::vec3 Position;
-    glm::vec3 Direction;
-    glm::vec3 Rotation;
-    glm::vec3 Forward;
-    
-    glm::mat4 ProjectionMatrix;
-    glm::mat4 ViewMatrix;
-    
-    r32 FOV;
-    r32 ZNear;
-    r32 ZFar;
-};
 
 internal camera
 CameraInit()

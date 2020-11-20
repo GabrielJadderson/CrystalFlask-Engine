@@ -1,6 +1,7 @@
 
 #include "..\..\util\pool.h"
 #include "..\..\util\array.cpp"
+#include "..\..\util\string.h"
 #include "..\..\IO\crystalflask_datapacker.cpp"
 
 #include "constants.cpp"
@@ -20,7 +21,6 @@
 
 #include "camera.cpp"
 #include "editor.cpp"
-
 
 
 global_variable glm::mat4 ProjectionMatrix, ViewMatrix, MVP;
@@ -44,8 +44,6 @@ global_variable u32 MatrixID2;
 global_variable u32 ViewMatrixID;
 global_variable u32 ModelMatrixID;
 global_variable u32 TextureID;
-
-global_variable b32 IsOpenGLInitialized = false;
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum camera_movement {
@@ -75,34 +73,6 @@ const float SENSITIVITY =  0.1f;
 const float ZOOM        =  45.0f;
 
 
-internal opengl_info
-OpenGLGetInfo(b32 ModernContext)
-{
-    opengl_info Result = {};
-    
-    Result.ModernContext = ModernContext;
-    Result.Vendor = (char *)glGetString(GL_VENDOR);
-    Result.Renderer = (char *)glGetString(GL_RENDERER);
-    Result.Version = (char *)glGetString(GL_VERSION);
-    
-    if(Result.ModernContext)
-    {
-        Result.ShadingLanguageVersion = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
-    }
-    else
-    {
-        Result.ShadingLanguageVersion = "(none)";
-    }
-    
-    Result.Extensions = (char *)glGetString(GL_EXTENSIONS);
-    
-    if (Result.Extensions)
-    {
-        
-    }
-    
-    return(Result);
-}
 
 internal void
 OpenGLUpdateViewport(s32 X, s32 Y, s32 ViewportWidth, s32 ViewportHeight)
@@ -114,27 +84,6 @@ OpenGLUpdateViewport(s32 X, s32 Y, s32 ViewportWidth, s32 ViewportHeight)
 }
 
 
-internal opengl_info
-OpenGLInit(HWND Window, b32 FramebufferSupportsSRGB)
-{
-    ImGuiInit(Window);
-    opengl_info Result = OpenGLGetInfo(true);
-    
-    Result.OpenGLVersion = (char*)glGetString(GL_VERSION);
-    
-    OutputDebugStringA(Result.OpenGLVersion);
-    
-    OpenGL.DefaultInternalTextureFormat = GL_RGBA8;
-    if(FramebufferSupportsSRGB && Result.GL_EXT_texture_sRGB && Result.GL_EXT_framebuffer_sRGB)
-    {
-        OpenGL.DefaultInternalTextureFormat = GL_SRGB8_ALPHA8;
-        glEnable(GL_FRAMEBUFFER_SRGB);
-    }
-    
-    IsOpenGLInitialized = true;
-    return(Result);
-}
-
 
 
 global_variable u32 DDS;
@@ -144,10 +93,19 @@ global_variable mesh_data *MeshQuad = NULL;
 
 global_variable u32 DebugCubeMapTexture = 0;
 
+global_variable u32 bookcase_texture = 0;
+global_variable u32 bookcase_texture_norm = 0;
+global_variable u32 bookcase_texture_spec = 0;
+global_variable u32 trailer_texture = 0;
+
+global_variable mesh_data* TextMeshData = NULL;
+
 
 internal void
-OpenGLStart()
+OpenGLStart(HWND Window)
 {
+    LoadEditorResources(); //can be fully async
+    
     //load textures and stuff
     LoadPrimitives();
     
@@ -159,16 +117,46 @@ OpenGLStart()
     
     
     // TODO(Gabriel): Fix this -> see if we move these into material or shader or a different textureallocator??? otherwise keep them here.
-    texture_descriptor Texture1 = RegisterTexture("resources/textures/UV1024.png", TextureType_PNG);
+    texture_descriptor Texture1 = RegisterTexture("resources/textures/UV1024.png", TextureType_PNG, true);
     
-    texture_descriptor Texture2 = RegisterTexture("resources/textures/StoneFloorTexture.png", TextureType_PNG);
+    texture_descriptor Texture2 = RegisterTexture("resources/textures/StoneFloorTexture.png", TextureType_PNG, true);
     
-    texture_descriptor Texture3 = RegisterTexture("resources/textures/blue_noise.png", TextureType_PNG);
+    texture_descriptor Texture3 = RegisterTexture("resources/textures/blue_noise.png", TextureType_PNG, true);
     
-    texture_descriptor Texture4 = RegisterTexture("resources/textures/noise.png", TextureType_PNG);
+    texture_descriptor Texture4 = RegisterTexture("resources/textures/noise.png", TextureType_PNG, true);
     
     
-    texture_descriptor UvmapTex = RegisterTexture("resources/textures/uvmap.DDS", TextureType_DDS);
+    AlbedoTexture = RegisterTexture("resources/textures/SphereAlbedo.tga", TextureType_TGA, false).TextureID;
+    NormalTexture = RegisterTexture("resources/textures/normal.png", TextureType_PNG, false).TextureID;
+    MetalnessTexture = RegisterTexture("resources/textures/SphereMetalness.tga", TextureType_TGA, false).TextureID;
+    RoughnessTexture = RegisterTexture("resources/textures/SphereRoughness.tga", TextureType_TGA, false).TextureID;
+    
+    
+    EnvIrradianceTexture = RegisterTexture("resources/textures/uvmap.DDS", TextureType_DDS, false).TextureID;
+    //EnvIrradianceTexture = RegisterTexture("resources/textures/environment/Arches_E_PineTree_Irradiance.tga", TextureType_TGA, false).TextureID;
+    //EnvRadianceTexture = RegisterTexture("resources/textures/environment/Arches_E_PineTree_Radiance.tga", TextureType_TGA, false).TextureID;
+    EnvRadianceTexture = RegisterTexture("resources/textures/uvmap.DDS", TextureType_DDS, false).TextureID;
+    BRDFLUTTexture = RegisterTexture("resources/textures/BRDF_LUT.tga", TextureType_TGA, false).TextureID;
+    
+    RegisterOpenGLTextureCube("resources/textures/environment/Arches_E_PineTree_Radiance.tga");
+    
+    
+    
+    
+    texture_descriptor UvmapTex = RegisterTexture("resources/textures/uvmap.DDS", TextureType_DDS, true);
+    
+    texture_descriptor bookcaseTex = RegisterTexture("resources/textures/bookcase.tga", TextureType_TGA, false);
+    bookcase_texture = bookcaseTex.TextureID;
+    
+    texture_descriptor bookcaseTexNormal = RegisterTexture("resources/textures/normal.png", TextureType_PNG, false);
+    bookcase_texture_norm = bookcaseTexNormal.TextureID;
+    
+    texture_descriptor bookcaseTexSpec = RegisterTexture("resources/textures/spec.png", TextureType_PNG, false);
+    bookcase_texture_spec = bookcaseTexSpec.TextureID;
+    
+    
+    texture_descriptor trailerTex = RegisterTexture("resources/mesh/trailer/textures/Alena_Shek_0208trailer_default_color.tga.png", TextureType_PNG, false);
+    trailer_texture = trailerTex.TextureID;
     
     DDS = UvmapTex.TextureID;
     
@@ -178,33 +166,115 @@ OpenGLStart()
     texture1 = Texture1.TextureID;
     texture2 = Texture2.TextureID;
     
+    ImGuiIO& io = ImGui::GetIO();
+    
+    char text[256];
+    sprintf(text,"%.2f sec", 1000.0f / io.Framerate);
+    TextMeshData = InitText2D(text, 10, 500, 60);
+    
     
     scene *Scene = CreateScene("TestScene");
     GlobalScene = Scene;
     
     entity* Cube = CreateEntityPrimitive(Scene, "Cube", PRIMITIVE_CUBE);
     Cube->Position = glm::vec3{0, 0.5, 0};
+    Cube->Material->Shader = GlobalShaderDataCache.SimpleShadingProgram;
+    Cube->Material->Textures2D[0] = Texture1.TextureID;
+    Cube->Material->Textures2D[1] = bookcase_texture_norm;
+    Cube->Material->Textures2D[2] = bookcase_texture_spec;
+    Cube->Material->TexturesCount = 3;
     
     entity* Plane = CreateEntityPrimitive(Scene, "Plane", PRIMITIVE_PLANE);
     Plane->Position = glm::vec3{4, 0, 0};
+    Plane->Material->Shader = GlobalShaderDataCache.PBRProgram;
+    Plane->Material->Textures2D[0] = Texture1.TextureID;
+    Plane->Material->Textures2D[1] = bookcase_texture_norm;
+    Plane->Material->Textures2D[2] = bookcase_texture_spec;
+    Plane->Material->TexturesCount = 3;
     
     entity* Cube1 = CreateEntityPrimitive(Scene, "Cube Blender", PRIMITIVE_CUBE_BLENDER);
     Cube1->Position = glm::vec3{8, 1, 0};
+    Cube1->Material->Shader = GlobalShaderDataCache.PBRProgram;
+    Cube1->Material->Textures2D[0] = Texture1.TextureID;
+    Cube1->Material->Textures2D[1] = bookcase_texture_norm;
+    Cube1->Material->Textures2D[2] = bookcase_texture_spec;
+    Cube1->Material->TexturesCount = 3;
     
     entity* Sphere = CreateEntityPrimitive(Scene, "Sphere", PRIMITIVE_SPHERE);
     Sphere->Position = glm::vec3{8, 1, 4};
+    Sphere->Material->Shader = GlobalShaderDataCache.PBRProgram;
+    Sphere->Material->Textures2D[0] = Texture1.TextureID;
+    Sphere->Material->Textures2D[1] = bookcase_texture_norm;
+    Sphere->Material->Textures2D[2] = bookcase_texture_spec;
+    Sphere->Material->TexturesCount = 3;
     
     entity* Cylinder = CreateEntityPrimitive(Scene, "Cylinder", PRIMITIVE_CYLINDER);
     Cylinder->Position = glm::vec3{4, 1, 4};
+    Cylinder->Material->Shader = GlobalShaderDataCache.PBRProgram;
+    Cylinder->Material->Textures2D[0] = Texture1.TextureID;
+    Cylinder->Material->Textures2D[1] = bookcase_texture_norm;
+    Cylinder->Material->Textures2D[2] = bookcase_texture_spec;
+    Cylinder->Material->TexturesCount = 3;
     
     entity* Cone = CreateEntityPrimitive(Scene, "Cone", PRIMITIVE_CONE);
     Cone->Position = glm::vec3{0, 1, 4};
+    Cone->Material->Shader = GlobalShaderDataCache.SimpleShadingProgram;
+    Cone->Material->Textures2D[0] = Texture1.TextureID;
+    Cone->Material->Textures2D[1] = bookcase_texture_norm;
+    Cone->Material->Textures2D[2] = bookcase_texture_spec;
+    Cone->Material->TexturesCount = 3;
     
     entity* Icosphere = CreateEntityPrimitive(Scene, "Icosphere", PRIMITIVE_ICOSPHERE);
     Icosphere->Position = glm::vec3{-4, 1, 4};
+    Icosphere->Material->Shader = GlobalShaderDataCache.SimpleShadingProgram;
+    Icosphere->Material->Textures2D[0] = Texture1.TextureID;
+    Icosphere->Material->Textures2D[1] = bookcase_texture_norm;
+    Icosphere->Material->Textures2D[2] = bookcase_texture_spec;
+    Icosphere->Material->TexturesCount = 3;
     
     entity* Monkey = CreateEntityPrimitive(Scene, "Monkey", PRIMITIVE_MONKEY);
     Monkey->Position = glm::vec3{-8, 1, 4};
+    Monkey->Material->Shader = GlobalShaderDataCache.SimpleShadingProgram;
+    Monkey->Material->Textures2D[0] = Texture1.TextureID;
+    Monkey->Material->Textures2D[1] = bookcase_texture_norm;
+    Monkey->Material->Textures2D[2] = bookcase_texture_spec;
+    Monkey->Material->TexturesCount = 3;
+    
+    
+    entity* BookCase = CreateEntityWithMesh(Scene, "BookCase", "X:/Art/blender/bookcase/bookcase.obj");
+    BookCase->Position = glm::vec3{-12, 1, 4};
+    BookCase->Material->Textures2D[0] = AlbedoTexture;
+    BookCase->Material->Textures2D[1] = NormalTexture;
+    BookCase->Material->Textures2D[2] = MetalnessTexture;
+    BookCase->Material->Textures2D[3] = RoughnessTexture;
+    BookCase->Material->Textures2D[4] = EnvIrradianceTexture;
+    BookCase->Material->Textures2D[5] = EnvRadianceTexture;
+    BookCase->Material->Textures2D[6] = BRDFLUTTexture;
+    BookCase->Material->TexturesCount = 7;
+    BookCase->Material->Shader = GlobalShaderDataCache.PBRProgram;
+    
+    
+    entity* BookCase2 = CreateEntityWithMesh(Scene, "BookCase2", "X:/CrystalFlask/crystalflask/data/resources/mesh/trailer/Alena_Shek.fbx");
+    BookCase2->Position = glm::vec3{0, 0, -15};
+    BookCase2->Rotation = glm::vec3{0, -90, 0};
+    BookCase2->Scale = glm::vec3{0.1, 0.1, 0.1};
+    BookCase2->Material->Textures2D[0] = trailer_texture;
+    BookCase2->Material->Textures2D[1] = bookcase_texture_norm;
+    BookCase2->Material->Textures2D[2] = bookcase_texture_spec;
+    BookCase2->Material->TexturesCount = 3;
+    BookCase2->Material->Shader = GlobalShaderDataCache.SimpleShadingProgram;
+    BookCase2->Material->ShaderColor = {1.0, 0, 0, 1.0};
+    
+    
+    entity* textEntity = CreateEntityWithMesh(Scene, "textEntity", "X:/CrystalFlask/crystalflask/data/resources/mesh/trailer/Alena_Shek.fbx");
+    textEntity->MeshData = TextMeshData;
+    textEntity->Position = glm::vec3{0, 0, 0};
+    textEntity->Rotation = glm::vec3{0, 0, 0};
+    textEntity->Scale = glm::vec3{1.0, 1.0, 1.0};
+    
+    textEntity->Material->Textures2D[0] = RegisterTexture("resources/textures/text/Holstein.DDS", TextureType_DDS, false).TextureID;
+    textEntity->Material->TexturesCount = 1;
+    textEntity->Material->Shader = GlobalShaderDataCache.TextProgram;
     
     
 #if 0
@@ -226,38 +296,34 @@ OpenGLStart()
     
     EditorGridPlane = GetPrimitiveMeshData(PRIMITIVE_PLANE);
     
-    /*
+    
     SkyboxCubemap = RegisterCubeMap("resources/Skybox/2/right.jpg",
                                     "resources/Skybox/2/left.jpg",
-                                    "resources/Skybox/2/up.jpg",
-                                    "resources/Skybox/2/down.jpg",
+                                    "resources/Skybox/2/top.jpg",
+                                    "resources/Skybox/2/bottom.jpg",
                                     "resources/Skybox/2/front.jpg",
                                     "resources/Skybox/2/back.jpg");
-    */
-    
-    SkyboxCubemap = RegisterCubeMap("resources/Skybox/1/right.tga",
-                                    "resources/Skybox/1/left.tga",
-                                    "resources/Skybox/1/up.tga",
-                                    "resources/Skybox/1/down.tga",
-                                    "resources/Skybox/1/front.tga",
-                                    "resources/Skybox/1/back.tga");
     
     //texture_descriptor AlbedoTex = RegisterTexture("resources/textures/BRDF_LUT.tga", TextureType_TGA);
     
-    texture_descriptor AlbedoTex = RegisterTexture("resources/textures/Checkerboard.tga", TextureType_TGA);
+    texture_descriptor AlbedoTex = RegisterTexture("resources/textures/diffuse.DDS", TextureType_DDS, true);
     
-    texture_descriptor MetalnessTex = RegisterTexture("resources/textures/SphereAlbedo.tga", TextureType_TGA);
-    texture_descriptor NormalTex = RegisterTexture("resources/textures/BRDF_LUT.tga", TextureType_TGA);
+    texture_descriptor MetalnessTex = RegisterTexture("resources/textures/SphereAlbedo.tga", TextureType_TGA, true);
     
+    texture_descriptor NormalTex = RegisterTexture("resources/textures/normal.bmp", TextureType_BMP, true);
+    
+    texture_descriptor BRDFTex = RegisterTexture("resources/textures/BRDF_LUT.tga", TextureType_TGA, true);
     
     AlbedoTexture = AlbedoTex.TextureID;
     NormalTexture = NormalTex.TextureID;
+    
     MetalnessTexture = MetalnessTex.TextureID;
-    RoughnessTexture = NormalTex.TextureID;
+    RoughnessTexture = MetalnessTex.TextureID;
+    
     EnvIrradianceTexture = SkyboxCubemap.TextureID;
     EnvRadianceTexture = SkyboxCubemap.TextureID;
     
-    BRDFLUTTexture = AlbedoTex.TextureID;
+    BRDFLUTTexture = BRDFTex.TextureID;
     
     
     SkyboxMesh = GetPrimitiveMeshData(PRIMITIVE_CUBE);
@@ -481,7 +547,15 @@ OpenGLRender(game_input* Input)
     //finalize imgui
     ImGuiFinish(io);
     
+    
+    
+    
     //end frame
     Renderer->EndFrame();
     //
+    
+    
+    
+    
+    
 }

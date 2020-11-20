@@ -27,3 +27,6 @@ LoadPrimitives()
     
     GlobalPrimitiveMeshDataCache[(unsigned char)PRIMITIVE_WATER] = ReadMeshAsync("resources/primitives/water.obj");
 }
+
+
+

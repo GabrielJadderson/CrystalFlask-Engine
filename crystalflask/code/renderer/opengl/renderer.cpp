@@ -1,3 +1,4 @@
+#include "scene_renderer.cpp"
 
 struct renderer
 {
@@ -8,7 +9,6 @@ struct renderer
     internal void BeginFrame();
     internal void Render(r32 DeltaTime);
     internal void EndFrame();
-    
 };
 
 
@@ -18,26 +18,27 @@ global_variable renderer *Renderer = NULL;
 renderer*
 renderer::Start()
 {
-    if (Renderer == NULL)
-    {
-        Renderer = (renderer*)PushStruct(&GlobalOpenGLArena, renderer);
-    }
+    if (Renderer == NULL) Renderer = (renderer*)PushStruct(&GlobalOpenGLArena, renderer);
     
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     
 	// Enable depth test
+    glDepthMask(GL_TRUE);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
-	// Accept fragment if it closer to the camera than the former one
-	glDepthFunc(GL_LESS);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
     
-    // Cull triangles which normal is not towards the camera
-	//glEnable(GL_CULL_FACE);
-    //glEnable(GL_FRONT_AND_BACK);
-    //glFrontFace(GL_CCW);
+    glEnable(GL_MULTISAMPLE);
     
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_SCISSOR_TEST);
+    glDisable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
+    glClearDepth(1.0f);
     
     return Renderer;
 }
@@ -45,10 +46,43 @@ renderer::Start()
 internal void
 Clear()
 {
-    glClearColor(0.0f, 0.05f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+
+internal void
+RenderSkybox()
+{
+    //Skybox
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap.TextureID);
+    
+    glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+    glCullFace(GL_FRONT);
+    glUseProgram(GlobalShaderCache.SkyboxProgram);
+    
+    glm::vec3 SkyboxPosition = CameraPosition;
+    glm::vec3 SkyboxScale = {ZFar, ZFar, ZFar}; //the scale should be ZFar, that way it will never prematurely cull objects out when the camera moves.
+    glm::mat4 SkyboxModelMatrix = glm::mat4(1.0);
+    //Translate * Rotate * Scale
+    SkyboxModelMatrix = glm::translate(SkyboxModelMatrix, SkyboxPosition);
+    SkyboxModelMatrix = glm::scale(SkyboxModelMatrix, SkyboxScale);
+    glm::mat4 SkyboxMVP = ProjectionMatrix * ViewMatrix * SkyboxModelMatrix;
+    
+    // TODO(Gabriel): REMOVE THIS to somewhere dedicated.
+    // TODO(Gabriel): Add imgui panel for skybox, so that we can control the skybox
+    static r32 DeltaTimeIncrementer = 0.0f;
+    DeltaTimeIncrementer += 0.35f;
+    
+    ShaderSkyboxUpload(SkyboxMVP);
+    
+    RenderMesh(SkyboxMesh);
+    
+    glDepthFunc(GL_LESS); // set depth function back to default
+    glCullFace(GL_BACK);
+    
+}
 
 unsigned int texture1, texture2;
 
@@ -56,16 +90,14 @@ unsigned int texture1, texture2;
 void
 renderer::Render(r32 DeltaTime)
 {
-    
-    glUseProgram(GlobalShaderCache.BasicProgram);
-    
-    
+    /*
+     glUseProgram(GlobalShaderCache.BasicProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture1);
     
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
-    
+    */
     
     
     //glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
@@ -88,12 +120,19 @@ renderer::Render(r32 DeltaTime)
         }
         
         //render entities
-        for (u32 EntityIndex = 0; EntityIndex <  GlobalScene->EntityCacheCount; EntityIndex++)
+        for (u32 EntityIndex = 0;
+             EntityIndex <  GlobalScene->EntityCacheCount;
+             EntityIndex++)
         {
-            UpdateAndRenderEntity(&GlobalScene->EntityCache[EntityIndex], ViewMatrix, ProjectionMatrix);
+            UpdateAndRenderEntity(&GlobalScene->EntityCache[EntityIndex],
+                                  ViewMatrix,
+                                  ProjectionMatrix);
         }
         
         
+        
+        
+        /*
         {
             glUseProgram(GlobalShaderCache.PBRProgram);
             
@@ -104,47 +143,17 @@ renderer::Render(r32 DeltaTime)
             SkyboxModelMatrix2 = glm::translate(SkyboxModelMatrix2, SkyboxPosition2);
             SkyboxModelMatrix2 = glm::scale(SkyboxModelMatrix2, SkyboxScale2);
             glm::mat4 ViewProjection = ProjectionMatrix * ViewMatrix;
-            //glm::mat4 ViewProjection = ProjectionMatrix * ViewMatrix * SkyboxModelMatrix2;
             
             ShaderPBRSubmit(ViewProjection, SkyboxModelMatrix2);
-            //ShaderBasicSubmit(ViewProjection);
+            //
             RenderMesh(SkyboxMesh);
         }
+        */
         
         
+        RenderSkybox();
         
-        
-        //Skybox
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap.TextureID);
-        //glBindTexture(GL_TEXTURE_2D, texture4);
-        
-        //glActiveTexture(GL_TEXTURE1);
-        //glBindTexture(GL_TEXTURE_2D, texture3);
-        //glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxCubemap.TextureID);
-        //glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
-        
-        glUseProgram(GlobalShaderCache.SkyboxProgram);
-        
-        glm::vec3 SkyboxPosition = {0,3,0};
-        glm::vec3 SkyboxScale = {100, 100, 100};
-        glm::mat4 SkyboxModelMatrix = glm::mat4(1.0);
-        //Translate * Rotate * Scale
-        SkyboxModelMatrix = glm::translate(SkyboxModelMatrix, SkyboxPosition);
-        SkyboxModelMatrix = glm::scale(SkyboxModelMatrix, SkyboxScale);
-        glm::mat4 SkyboxMVP = ProjectionMatrix * ViewMatrix * SkyboxModelMatrix;
-        
-        // TODO(Gabriel): REMOVE THIS to somewhere dedicated.
-        // TODO(Gabriel): Add imgui panel for skybox, so that we can control the skybox
-        static r32 DeltaTimeIncrementer = 0.0f;
-        DeltaTimeIncrementer += 0.35f;
-        
-        ShaderSkyboxSubmit(SkyboxMVP, DeltaTime * DeltaTimeIncrementer);
-        //ShaderBasicSubmit(SkyboxMVP);
-        RenderMesh(SkyboxMesh);
-        
-        glDepthFunc(GL_LESS); // set depth function back to default
+        glFlush();
         
     }
     

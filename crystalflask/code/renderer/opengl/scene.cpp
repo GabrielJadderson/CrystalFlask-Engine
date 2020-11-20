@@ -23,3 +23,14 @@ LoadScene(scene *Scene)
     return true;
 }
 
+
+internal void
+SerializeScene(scene *Scene)
+{
+    if (!Scene) return;
+    // TODO(Gabriel): FIGURE OUT A WAY TO SERIALIZE SCENES OUT.
+    
+}
+
+
+

@@ -61,6 +61,8 @@ extern "C" {
 #define Pi32 3.14159265359f
     
     
+    
+    
 #if CRYSTALFLASK_DEBUG
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #else
@@ -122,6 +124,8 @@ extern "C" {
         return Result;
     }
     
+#define PopStruct(Arena, type) (void)PopSize_(Arena, sizeof(type))
+#define PopArray(Arena, Count, type) (void)PopSize_(Arena, (Count)*sizeof(type))
 #define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, (Count)*sizeof(type))
     void *
@@ -133,6 +137,14 @@ extern "C" {
         
         return Result;
     }
+    
+    void PopSize_(memory_arena *Arena, memory_index Size)
+    {
+        Assert((Arena->Used - Size) >= 0);
+        Arena->Used -= Size;
+    }
+    
+    
     //~ END Memory
     
     
@@ -411,6 +423,12 @@ extern "C" {
         
         u64 TransientStorageSize;
         void *TransientStorage;
+        
+        u64 TempStorageSize;
+        void *TempStorage;
+        
+        u64 StringStorageSize;
+        void *StringStorage;
         
         debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
         debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;

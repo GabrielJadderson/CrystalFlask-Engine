@@ -45,7 +45,7 @@ static int open_libgl(void)
 	libgl = LoadLibraryA("opengl32.dll");
 	if (!libgl)
 		return GL3W_ERROR_LIBRARY_OPEN;
-
+    
 	*(void **)(&wgl_get_proc_address) = GetProcAddress(libgl, "wglGetProcAddress");
 	return GL3W_OK;
 }
@@ -58,7 +58,7 @@ static void close_libgl(void)
 static GL3WglProc get_proc(const char *proc)
 {
 	GL3WglProc res;
-
+    
 	res = (GL3WglProc)wgl_get_proc_address(proc);
 	if (!res)
 		res = (GL3WglProc)GetProcAddress(libgl, proc);
@@ -74,7 +74,7 @@ static int open_libgl(void)
 	libgl = dlopen("/System/Library/Frameworks/OpenGL.framework/OpenGL", RTLD_LAZY | RTLD_LOCAL);
 	if (!libgl)
 		return GL3W_ERROR_LIBRARY_OPEN;
-
+    
 	return GL3W_OK;
 }
 
@@ -86,7 +86,7 @@ static void close_libgl(void)
 static GL3WglProc get_proc(const char *proc)
 {
 	GL3WglProc res;
-
+    
 	*(void **)(&res) = dlsym(libgl, proc);
 	return res;
 }
@@ -101,7 +101,7 @@ static int open_libgl(void)
 	libgl = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL);
 	if (!libgl)
 		return GL3W_ERROR_LIBRARY_OPEN;
-
+    
 	*(void **)(&glx_get_proc_address) = dlsym(libgl, "glXGetProcAddressARB");
 	return GL3W_OK;
 }
@@ -114,7 +114,7 @@ static void close_libgl(void)
 static GL3WglProc get_proc(const char *proc)
 {
 	GL3WglProc res;
-
+    
 	res = glx_get_proc_address((const GLubyte *)proc);
 	if (!res)
 		*(void **)(&res) = dlsym(libgl, proc);
@@ -130,10 +130,10 @@ static int parse_version(void)
 {
 	if (!glGetIntegerv)
 		return GL3W_ERROR_INIT;
-
+    
 	glGetIntegerv(GL_MAJOR_VERSION, &version.major);
 	glGetIntegerv(GL_MINOR_VERSION, &version.minor);
-
+    
 	if (version.major < 3)
 		return GL3W_ERROR_OPENGL_VERSION;
 	return GL3W_OK;
@@ -144,11 +144,11 @@ static void load_procs(GL3WGetProcAddressProc proc);
 int gl3wInit(void)
 {
 	int res;
-
+    
 	res = open_libgl();
 	if (res)
 		return res;
-
+    
 	atexit(close_libgl);
 	return gl3wInit2(get_proc);
 }
@@ -840,7 +840,7 @@ union GL3WProcs gl3wProcs;
 static void load_procs(GL3WGetProcAddressProc proc)
 {
 	size_t i;
-
+    
 	for (i = 0; i < ARRAY_SIZE(proc_names); i++)
 		gl3wProcs.ptr[i] = proc(proc_names[i]);
 }

@@ -19,6 +19,7 @@ NetworkThreadStartProc(LPVOID lpParam)
 {
     StartWSA();
     
+    
     /*
     while (GlobalNetworkIsRunning)
     {

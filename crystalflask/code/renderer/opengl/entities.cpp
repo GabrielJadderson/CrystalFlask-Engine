@@ -25,6 +25,7 @@ CreateEntity(scene *Scene, char *Name)
     Entity.Enabled = true;
     Entity.HasChild = false;
     Entity.Child = NULL;
+    Entity.Material = PushArray(&GlobalResourceArena, 1, material);
     
     if (Scene->EntityCache == NULL)
     {
@@ -180,6 +181,8 @@ UpdateAndRenderEntity(entity *Entity, glm::mat4 &ViewMatrix,glm::mat4 &Projectio
             //2. Render the entity from it's meshdata.
             if (Entity->MeshData)
             {
+                
+                
                 glBindVertexArray(Entity->MeshData->VAO);
                 
                 
@@ -190,9 +193,14 @@ UpdateAndRenderEntity(entity *Entity, glm::mat4 &ViewMatrix,glm::mat4 &Projectio
                 ModelMatrix = ModelMatrix * glm::eulerAngleXYZ(glm::radians(Entity->Rotation.x), glm::radians(Entity->Rotation.y), glm::radians(Entity->Rotation.z));
                 ModelMatrix = glm::scale(ModelMatrix, Entity->Scale);
                 glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+                glm::mat4 ViewProjectionMatrix = ProjectionMatrix * ViewMatrix;
                 
+                if (Entity->Material)
+                {
+                    RenderMaterial(Entity->Material,
+                                   MVP, ViewProjectionMatrix, ViewMatrix, ModelMatrix);
+                }
                 
-                ShaderBasicSubmit(MVP);
                 RenderMesh(Entity->MeshData);
             }
         }

@@ -510,112 +510,6 @@ global_variable crystalflask_console CrystalFlaskConsole;
 
 
 internal void
-ImGuiInit(HWND Window)
-{
-    
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    
-    io.ConfigDockingWithShift = 0;
-    io.ConfigDockingAlwaysTabBar = 1;
-    io.ConfigDockingTransparentPayload = 1;
-    io.ConfigWindowsMoveFromTitleBarOnly = 1;
-    
-    
-    ImGui::StyleColorsDark();
-    ImGuiStyle& style = ImGui::GetStyle();
-    
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-    
-    style.FrameBorderSize = 0;
-    style.WindowBorderSize = 0;
-    style.ScrollbarSize = 4;
-    style.ItemSpacing[0] = 7.0f;
-    style.ItemSpacing[1] = 7.0f;
-    style.ItemInnerSpacing[0] = 3.0f;
-    style.ItemInnerSpacing[1] = 3.0f;
-    style.GrabMinSize = 8.0f;
-    style.WindowPadding[0] = 7.0f;
-    style.WindowPadding[1] = 7.0f;
-    style.FramePadding[0] = 4.0f;
-    style.FramePadding[1] = 6.0f;
-    
-    
-    style.WindowRounding = 3.0f;
-    style.ChildRounding = 3.0f;
-    style.FrameRounding = 3.0f;
-    style.PopupRounding = 3.0f;
-    style.ScrollbarRounding = 3.0f;
-    style.GrabRounding = 1.0f;
-    style.TabRounding = 2.0f;
-    
-    style.WindowMenuButtonPosition = 1;
-    
-    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
-    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
-    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.157f, 0.157f, 0.157f, 0.50f);
-    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.187f, 0.187f, 0.187f, 1.0f);
-    style.Colors[ImGuiCol_CheckMark] = ImVec4(0.280f, 0.280f, 0.280f, 1.0f);
-    style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.280f, 0.280f, 0.280f, 1.0f);
-    style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    
-    style.Colors[ImGuiCol_Button] = ImVec4(0.373f, 0.373f, 0.373f, 1.0f);
-    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    style.Colors[ImGuiCol_ButtonActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    
-    style.Colors[ImGuiCol_Header] = ImVec4(0.190f, 0.190f, 0.190f, 1.0f);
-    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    style.Colors[ImGuiCol_HeaderActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    
-    style.Colors[ImGuiCol_Separator] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
-    style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
-    style.Colors[ImGuiCol_SeparatorActive] = ImVec4(0.230f, 0.230f, 0.230f, 0.5f);
-    
-    style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.0f, 0.0f, 0.0f, 0.250f);
-    style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    
-    
-    style.Colors[ImGuiCol_Tab] = ImVec4(0.8, 0.8f, 0.8f, 0.676f);
-    style.Colors[ImGuiCol_TabHovered] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    style.Colors[ImGuiCol_TabActive] = ImVec4(1.0f, 0.551f, 0.0f, 1.0f);
-    style.Colors[ImGuiCol_TabUnfocused] = ImVec4(0.200f, 0.200f, 0.200f, 1.0f);
-    style.Colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.0f, 0.0, 0.0f, 1.0f);
-    
-    
-    style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.980f, 0.680f, 0.260f, 0.350f);
-    style.Colors[ImGuiCol_NavHighlight] = ImVec4(0.980f, 0.680f, 0.260f, 0.350f);
-    
-    style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.0f, 0.243f, 0.545f, 0.350f);
-    
-    
-    io.Fonts->AddFontFromFileTTF("resources/editor/imgui/fonts/Inter-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Black.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Bold.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("resources/imgui/fonts/Inter-Medium.ttf", 15.0f);
-    
-    
-    //io.Fonts->AddFontFromFileTTF("resources/editor/imgui/Menlo-Regular.ttf", 14.0f);
-    //io.Fonts->AddFontFromFileTTF("resources/editor/imgui/routed-gothic.ttf", 20.0f);
-    
-    
-    
-    
-    
-    ImGui_ImplWin32_Init(Window);
-    ImGui_ImplOpenGL3_Init("#version 460");
-}
-
-internal void
 ImGuiNewFrame()
 {
     ImGui_ImplOpenGL3_NewFrame();
@@ -657,6 +551,7 @@ static void ShowInfoOverlay(bool* Enable)
         const float DISTANCE = 5.0f;
         static int corner = 2;
         ImGuiIO& io = ImGui::GetIO();
+        
         if (corner != -1)
         {
             ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE, (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
@@ -899,6 +794,7 @@ RenderSceneHierarchy()
             int node_clicked = -1;                // Temporary storage of what node we have clicked to process selection at the end of the loop. May be a pointer to your own node type, etc.
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetFontSize() * 3); // Increase spacing to differentiate leaves from expanded contents.
             
+            static ImTextureID EditorCubeID = (void*)EditorTexture_Cube;
             
             for (s32 EntityIndex = 0; EntityIndex < GlobalScene->EntityCacheCount; EntityIndex++)
             {
@@ -921,7 +817,7 @@ RenderSceneHierarchy()
                         // TODO(Gabriel): MAKE SURE THE ENTITY INDEX IS the CHILDS index!? AND NOT THE PARENT???
                         
                         
-                        ImGui::Image(0, ImVec2(15, 15), ImVec2(0,0), ImVec2(1,1), ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+                        ImGui::Image(EditorCubeID, ImVec2(17, 20));
                         
                         ImGui::SameLine();
                         bool node_open = ImGui::TreeNodeEx((void*)(intptr_t)EntityIndex, node_flags, Entity.Child->Name->String, EntityIndex);
@@ -959,8 +855,8 @@ RenderSceneHierarchy()
                         
                         node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
                         
-                        static ImTextureID TextureID = (void*)1;
-                        ImGui::Image(TextureID, ImVec2(15, 15), ImVec2(0,0), ImVec2(1,1), ImVec4(1.0f,1.0f,1.0f,1.0f), ImVec4(1.0f,1.0f,1.0f,0.5f));
+                        
+                        ImGui::Image(EditorCubeID, ImVec2(17, 20));
                         
                         ImGui::SameLine(30.0f);
                         ImGui::TreeNodeEx((void*)(intptr_t)EntityIndex, node_flags, Entity.Name->String, EntityIndex);
@@ -1365,6 +1261,22 @@ RenderSettings()
                     CameraRotation[2] = imgui_camera_rotation[2];
                     ImGui::SliderFloat("Pitch", &Pitch, 0.001f, 50.0f);
                     ImGui::SliderFloat("Yaw", &Yaw, 0.001f, 50.0f);
+                    
+                    ImGui::EndTabItem();
+                }
+                
+                if (ImGui::BeginTabItem("World"))
+                {
+                    r32 LightPos[3] =
+                    {
+                        LightPosition[0],
+                        LightPosition[1],
+                        LightPosition[2]
+                    };
+                    ImGui::SliderFloat3("Light Position", LightPos, 0.001f, 10.0f);
+                    LightPosition[0] = LightPos[0];
+                    LightPosition[1] = LightPos[1];
+                    LightPosition[2] = LightPos[2];
                     
                     ImGui::EndTabItem();
                 }

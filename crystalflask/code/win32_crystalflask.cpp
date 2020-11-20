@@ -1,4 +1,5 @@
 #include "crystalflask_platform.h"
+#include "win32_constants.cpp"
 
 #define _WINSOCKAPI_
 #include <windows.h>
@@ -16,6 +17,8 @@
 #include "win32_crystalflask.h"
 #include "win32_util.cpp"
 
+
+
 #include "crystalflask_network.cpp"
 
 //~ imgui
@@ -23,6 +26,12 @@
 #include "renderer/opengl/imgui_impl_opengl3.cpp"
 #include "imgui_impl_win32.cpp"
 #include <imgui_internal.h>
+
+#include "win32_opengl.cpp"
+
+
+
+
 
 //~ BEGIN stb
 #define STB_IMAGE_IMPLEMENTATION
@@ -41,13 +50,13 @@
 
 
 #include "renderer/opengl/opengl.h"
-global_variable opengl_instance OpenGL;
-global_variable opengl_info OpenGLInfo;
 global_variable HGLRC GlobalGLRC;
 global_variable HWND GlobalWindow;
 
 global_variable memory_arena GlobalOpenGLArena;
+global_variable memory_arena GlobalTempArena;
 global_variable memory_arena GlobalResourceArena;
+global_variable memory_arena GlobalStringArena;
 
 global_variable s64 GlobalPerfCountFrequency;
 global_variable b32 GlobalRunning;
@@ -446,6 +455,12 @@ Win32MainWindowCallback(HWND Window,
         }
         break;
         
+        
+        case WM_SYSCOMMAND:
+        {
+            if ((WParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
+                return 0;
+        } break;
         
         
         case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
@@ -895,10 +910,34 @@ Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
     return Result;
 }
 
+
+/*
 internal void
 Win32InitOpenGL(HWND Window, HDC WindowDC)
 {
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+    //https://www.khronos.org/opengl/wiki/Creating_an_OpenGL_Context_(WGL)
+    PIXELFORMATDESCRIPTOR pfd =
+    {
+        sizeof(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,    // Flags
+        PFD_TYPE_RGBA,        // The kind of framebuffer. RGBA or palette.
+        32,                   // Colordepth of the framebuffer.
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        24,                   // Number of bits for the depthbuffer
+        8,                    // Number of bits for the stencilbuffer
+        0,                    // Number of Aux buffers in the framebuffer.
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+    
+    
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = pfd;
     DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
     DesiredPixelFormat.nVersion = 1;
     DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
@@ -907,6 +946,7 @@ Win32InitOpenGL(HWND Window, HDC WindowDC)
     DesiredPixelFormat.cAlphaBits = 8;
     DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
     
+    //convert pixel format into a number
     int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
     PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
     DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex,
@@ -929,7 +969,7 @@ Win32InitOpenGL(HWND Window, HDC WindowDC)
                     "CrystalFlask", MB_OK | MB_ICONERROR);
     }
 }
-
+*/
 
 internal void
 Win32ResolveInternalSubstructure(win32_state *Win32State)
@@ -1019,6 +1059,7 @@ WinMain(HINSTANCE Instance,
     Win32ResolveInternalSubstructure(&Win32State);
     
     
+    
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
     GlobalPerfCountFrequency = PerfCountFrequencyResult.QuadPart;
@@ -1031,13 +1072,16 @@ WinMain(HINSTANCE Instance,
     
     
     WNDCLASSA WindowClass = {};
-    
     WindowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
-    WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
+    WindowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
     WindowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    WindowClass.lpszMenuName = NULL;
     WindowClass.lpszClassName = "CrystalFlaskWindowClass";
+    WindowClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    WindowClass.cbClsExtra = 0;
+    WindowClass.cbWndExtra = 0;
     
     s8 VersionMajor = 0;
     s8 VersionMinor = 1;
@@ -1071,11 +1115,17 @@ WinMain(HINSTANCE Instance,
             GlobalWindow = Window;
             //ToggleFullscreen(Window);
             
+            u32 MaxQuadCountPerFrame = (1 << 20);
+            
+            
+            Win32InitOpenGL(Window, GetDC(Window));
+            
+            
             s32 MonitorRefreshHz = 144;
             //
             HDC RefreshDC = GetDC(Window);
             s32 Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
-            
+            ReleaseDC(Window, RefreshDC);
             if(Win32RefreshRate > 1)
             {
                 MonitorRefreshHz = Win32RefreshRate;
@@ -1085,10 +1135,8 @@ WinMain(HINSTANCE Instance,
             r32 TargetSecondsPerFrame = 1.0f / (r32) GameUpdateHz;
             LARGE_INTEGER LastCounter = Win32GetWallClock();
             
-            Win32InitOpenGL(Window, RefreshDC);
-            //Win32State->GLRC = GlobalGLRC;
             Win32State.Window = Window;
-            ReleaseDC(Window, RefreshDC);
+            //Win32State->GLRC = GlobalGLRC;
             
             //
             
@@ -1100,22 +1148,45 @@ WinMain(HINSTANCE Instance,
             
             
             game_memory GameMemory = {};
-            GameMemory.PermanentStorageSize = Megabytes(128);
-            GameMemory.TransientStorageSize = Megabytes(256);
+            GameMemory.PermanentStorageSize = Megabytes(512);
+            GameMemory.TransientStorageSize = Megabytes(512);
+            GameMemory.TempStorageSize = Megabytes(256);
+            GameMemory.StringStorageSize = Megabytes(512);
             GameMemory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
             GameMemory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
             GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
             
             
             
-            Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+            Win32State.TotalSize =
+                GameMemory.PermanentStorageSize +
+                GameMemory.TransientStorageSize +
+                GameMemory.TempStorageSize +
+                GameMemory.StringStorageSize;
             
-            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,
-                                                      MEM_RESERVE|MEM_COMMIT,
+            
+            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress,
+                                                      (size_t)Win32State.TotalSize,
+                                                      MEM_RESERVE | MEM_COMMIT,
                                                       PAGE_READWRITE);
+            
             GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
-            GameMemory.TransientStorage = ((u8 *)GameMemory.PermanentStorage +
-                                           GameMemory.PermanentStorageSize);
+            GameMemory.TransientStorage =
+                ((u8 *)GameMemory.PermanentStorage +
+                 GameMemory.PermanentStorageSize);
+            
+            GameMemory.TempStorage =
+                ((u8 *)GameMemory.PermanentStorage +
+                 GameMemory.PermanentStorageSize +
+                 GameMemory.TransientStorageSize);
+            
+            GameMemory.TempStorage =
+                ((u8 *)GameMemory.PermanentStorage +
+                 GameMemory.PermanentStorageSize +
+                 GameMemory.TransientStorageSize +
+                 GameMemory.TempStorageSize);
+            
+            
             
             
             if(!GameMemory.IsInitialized)
@@ -1127,12 +1198,20 @@ WinMain(HINSTANCE Instance,
                 InitializeArena(&GlobalResourceArena,
                                 GameMemory.TransientStorageSize, (u8 *)GameMemory.TransientStorage);
                 
+                InitializeArena(&GlobalTempArena,
+                                GameMemory.TempStorageSize,
+                                (u8 *)GameMemory.TempStorage);
+                
+                InitializeArena(&GlobalStringArena,
+                                GameMemory.StringStorageSize,
+                                (u8 *)GameMemory.StringStorage);
+                
                 GameMemory.IsInitialized = true;
             }
             
             Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
             
-            OpenGLStart();
+            OpenGLStart(Window);
             
 #if 0
             for(int ReplayIndex = 1;
@@ -1170,12 +1249,13 @@ WinMain(HINSTANCE Instance,
             if(GameMemory.PermanentStorage && GameMemory.TransientStorage)
             {
                 
+                LARGE_INTEGER LastCounter = Win32GetWallClock();
+                //LARGE_INTEGER FlipWallClock = Win32GetWallClock();
                 
                 game_input Input[2] = {};
                 game_input *NewInput = &Input[0];
                 game_input *OldInput = &Input[1];
                 
-                LARGE_INTEGER LastCounter = Win32GetWallClock();
                 
                 GlobalGameCode = Win32LoadGameCode(GlobalWin32InternalLibrary.GameDLLPath,
                                                    GlobalWin32InternalLibrary.GameDLLTempPath,
@@ -1189,14 +1269,21 @@ WinMain(HINSTANCE Instance,
                 
                 u32 LoadCounter = 0;
                 
-                u64 LastCycleCount = __rdtsc();
+                //u64 LastCycleCount = __rdtsc();
+                /*
+                u32 ExpectedFramesPerUpdate = 1;
+                r32 TargetSecondsPerFrame = (r32)ExpectedFramesPerUpdate / (r32)GameUpdateHz;
+                */
                 
                 while(GlobalRunning)
                 {
                     
-                    
                     NewInput->dtForFrame = TargetSecondsPerFrame;
                     
+                    
+                    
+                    //query changes to game DLL
+                    /*
                     FILETIME NewDLLWriteTime = Win32GetLastWriteTime(GlobalWin32InternalLibrary.GameDLLPath);
                     if(CompareFileTime(&NewDLLWriteTime, &GlobalGameCode.DLLLastWriteTime) != 0)
                     {
@@ -1206,6 +1293,14 @@ WinMain(HINSTANCE Instance,
                                                            GlobalWin32InternalLibrary.GameDLLLockPath);
                         LoadCounter = 0;
                     }
+                    */
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     
                     
                     
@@ -1225,38 +1320,16 @@ WinMain(HINSTANCE Instance,
                     Win32ProcessPendingMessages(&Win32State, NewKeyboardController, NewInput);
                     
                     
+                    
                     if(!GlobalPause)
                     {
                         
-                        POINT MouseP;
-                        GetCursorPos(&MouseP);
-                        ScreenToClient(Window, &MouseP);
-                        NewInput->MouseX = MouseP.x;
-                        NewInput->MouseY = MouseP.y;
-                        
-                        
-                        
-                        
-                        
-                        
-                        if(Win32State.InputRecordingIndex)
-                        {
-                            Win32RecordInput(&Win32State, NewInput);
-                        }
-                        
-                        if(Win32State.InputPlayingIndex)
-                        {
-                            Win32PlayBackInput(&Win32State, NewInput);
-                        }
-                        
-                        
-                        
-                        
                         //Render
-                        HDC DeviceContext = GetDC(Window);
+                        
                         
                         // TODO(Gabriel): FIX the render time, it hugs too much cpu time. Is it ImGui or our own render calls? It's quite possible that we've misinitialized imgui and we're not rendering properly.
                         OpenGLRender(NewInput);
+                        
                         
                         game_offscreen_buffer Buffer = {};
                         
@@ -1266,35 +1339,64 @@ WinMain(HINSTANCE Instance,
                             GlobalGameCode.UpdateAndRender(&Thread, &GameMemory, NewInput, &Buffer);
                         }
                         
-                        SwapBuffers(DeviceContext);
-                        ReleaseDC(Window, DeviceContext); //RELEASE THE FUCKING DC!!!!!!!
                         
+                        SwapBuffers(wglGetCurrentDC());
                         
-                        
-                        
-                        
-                        
-                        
-                        //sleep fixed frame rate
+                    }
+                    
+                    
+                    if(!GlobalPause)
+                    {
                         LARGE_INTEGER WorkCounter = Win32GetWallClock();
                         r32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
                         
+                        
+                        
+                        
                         r32 SecondsElapsedForFrame = WorkSecondsElapsed;
-                        if (SecondsElapsedForFrame < TargetSecondsPerFrame) {
-                            if (SleepIsGranular) {
-                                DWORD SleepMS = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecondsElapsedForFrame));
-                                if (SleepMS > 0)
+                        if(SecondsElapsedForFrame < TargetSecondsPerFrame)
+                        {
+                            if(SleepIsGranular)
+                            {
+                                DWORD SleepMS = (DWORD)(1000.0f * (TargetSecondsPerFrame -
+                                                                   SecondsElapsedForFrame));
+                                if(SleepMS > 0)
                                 {
                                     Sleep(SleepMS);
                                 }
                             }
                             
-                            r32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
-                            
-                            while (SecondsElapsedForFrame < TargetSecondsPerFrame)
+                            r32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter,
+                                                                                    Win32GetWallClock());
+                            if(TestSecondsElapsedForFrame < TargetSecondsPerFrame)
                             {
-                                SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
+                                // TODO(casey): LOG MISSED SLEEP HERE
                             }
+                            
+                            while(SecondsElapsedForFrame < TargetSecondsPerFrame)
+                            {
+                                SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter,
+                                                                                Win32GetWallClock());
+                            }
+                            
+                            
+                            POINT MouseP;
+                            GetCursorPos(&MouseP);
+                            ScreenToClient(Window, &MouseP);
+                            NewInput->MouseX = MouseP.x;
+                            NewInput->MouseY = MouseP.y;
+                            
+                            
+                            if(Win32State.InputRecordingIndex)
+                            {
+                                Win32RecordInput(&Win32State, NewInput);
+                            }
+                            
+                            if(Win32State.InputPlayingIndex)
+                            {
+                                Win32PlayBackInput(&Win32State, NewInput);
+                            }
+                            
                         }
                         else
                         {
@@ -1308,18 +1410,32 @@ WinMain(HINSTANCE Instance,
                         
                         
                         
-                        
-                        
-                        
-                        game_input *Temp = NewInput;
-                        NewInput = OldInput;
-                        OldInput = Temp;
-                        
                     }
                     else
                     {
                         Sleep(33);
                     }
+                    
+                    
+                    
+                    
+                    game_input *Temp = NewInput;
+                    NewInput = OldInput;
+                    OldInput = Temp;
+                    
+                    /*
+                    FlipWallClock = Win32GetWallClock();
+                    
+                    LARGE_INTEGER EndCounter = Win32GetWallClock();
+                    r32 MeasuredSecondsPerFrame = Win32GetSecondsElapsed(LastCounter, EndCounter);
+                    r32 ExactTargetFramesPerUpdate = MeasuredSecondsPerFrame*(r32)MonitorRefreshHz;
+                    u32 NewExpectedFramesPerUpdate = RoundReal32ToInt32(ExactTargetFramesPerUpdate);
+                    ExpectedFramesPerUpdate = NewExpectedFramesPerUpdate;
+                    
+                    TargetSecondsPerFrame = MeasuredSecondsPerFrame;
+                    
+                    LastCounter = EndCounter;
+                    */
                     
                 }
             }
